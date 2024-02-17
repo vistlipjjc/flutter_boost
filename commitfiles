@@ -1,2 +1,66 @@
 https://www.npackd.org/p/gradle/7.5.1
 下载后在gradle_cache_byandroid studio/wrapper对应版本号文件夹(需要flutter解压创建二维码文件名不要直接解压)解压即可
+
+
+Flutter 目前在性能表现上面还不够完美，整体页面还不够流畅，并且在一些复杂的页面场景下会出现比较严重的发热行为，尽管目前 Flutter 团队发布了新的渲染引擎 impeller，
+它在 iOS 上表现优异，流畅度有了质的提升，但还是无法完全解决一些性能问题且 Android 下 impeller 也还没开发完成。混合模式来扩宽更多的可能性。
+
+
+boost降低内存原理
+双端都注册了导航的接口，通过Channel来通知，用于请求路由变化、页面返回以及页面的生命周期处理等。
+flutter_boost 定义了一个通用的 CacheId："flutter_boost_default_engine"，当原生需要跳转到 Flutter 页面时，通过FlutterEngineCache.getInstance().get(ENGINE_ID); 
+获取同一个 Engine，这样无论打开了多少如图中的 A、B、C 的 Flutter 页面时，都不会产生额外的Engine内存损耗。
+public class FlutterBoost { 
+    public static final String ENGINE_ID = "flutter_boost_default_engine"; 
+    ... 
+}
+
+多引擎方案 FlutterEngineGroup
+官方FlutterEngineGroup对主native次多flutter引擎实例场景做了优化，共用一些通用的资源，例如GPU 上下文、线程快照等，生成额外的 Engine 时，号称内存占用缩小到 180k。这个程度，基本可以视为正常的损耗了。
+
+以上图中的 B、C 页面为例，两者都是 Flutter 页面，在 FlutterEngineGroup 这种处理下，因为它们所在的 Engine 不是同一个，这会产生完全的隔离行为，也就是 B、C 页面使用不同的堆栈，处在不同的 Isolate 中，两者是无法直接进行交互的。
+
+多引擎的优点是：它可以抹掉上图所示的 F、E、C 和 D、A 等内部路由，每次新增 Flutter 页面时，全部回调到原生，让原生生成新的 Engine 去承载页面，这样路由的管理全部由原生去处理，一个 Engine 只对应一个 Flutter 页面。
+
+但它也会带来一些额外的处理，像上面提到的，处在不同 Engine 下的Flutter 页面之间是无法直接交互的，如果涉及到需要通知和交互的场景，还得通过原生去转发。
+https://blog.csdn.net/Goals1989/article/details/132097317(有增加内存损耗的对比图)
+
+PlatformView 也可实现混合 UI，Flutter 中的 WebView 就是通过 PlatformView 这种方式引入的.在一个页面的最外层包裹一层 PlatformView，路由的管理都由 Flutter 来处理。这种方式下没有额外的 Engine 产生，是最简单的混合方式。
+
+
+本地存储
+这种方式比较容易理解，将本地存储视为中转站，Flutter中将数据操作存储到本地上，回到原生页面时在某个时机（如onResume）去查询本地数据库即可，反之亦然。
+对于<双端同一份数据需要重复定义对应的类>这个问题最好的解决办法是使用DSL一类的框架，如Google的ProtoBuf，将同一份对象配置文件编译到不同的语言环境中，便能省去这部分双端重复定义的行为。
+
+
+图片缓存
+在内存方面，如果同样的图片在两边都加载时，会使得原生和 Flutter 都会产生一次缓存。在 Flutter 下默认就会缓存在ImageCache中，原生下不同的框架由不同的对象负责，为了去掉重复的图片缓存，势必要统一图片的加载管理。
+
+阿里的方案也是如此，通过外接原生图片库，共享图片的本地文作缓存和内存缓存。它的实现思路是通过自定义ImageProvider和Codec，对接外部图库，获取到图片数据做解析，对接的处理是通过扩展 Flutter Engine。
+
+如果期望不修改Flutter Engine，也可通过外接纹理的方式去处理。通过PlatformChannel去请求原生，使到图片的外接纹理数据，通过TextTure组件展示图片。
+// 自定义 ImageProvider 中，通过 Channel 去请求 textureId
+var id = await _channel.invokeMethod('newTexture', {
+  "imageUrl": imageUrl,
+  "width": width ?? 0,
+  "height": height ?? 0,
+  "minWidth": constraints.minWidth,
+  "minHeight": constraints.minHeight,
+  "maxWidth": constraints.maxWidth,
+  "maxHeight": constraints.maxHeight,
+  "cacheKey": cacheKey,
+  "fit": fit.index,
+  "cacheOriginFile": cacheOriginFile,
+});
+ 
+// ImageWidget 中展示时通过 textureId 去显示图片
+SizedBox(
+  width: width,
+  heigt: height,
+  child: Texture(
+    filterQuality: FilterQuality.high,
+    textureId: _imageProvider.textureId.value,
+  ),
+)
+
+
