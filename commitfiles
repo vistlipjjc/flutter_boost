@@ -1,8 +1,16 @@
 flutter常用插件https://github.com/flutter/plugins
 仿微信聊天https://github.com/wanglu1209/WFlutterDemo
-flutter自建调用android plugin流程
+flutter自建调用android plugin流程https://blog.csdn.net/qq_36524413/article/details/137275603
+Flutter 混合开发】与原生通信
+native混合开发flutter混入多个单页面https://juejin.cn/post/7160889102131757092?searchId=20240216214134661717555F658885A07F
+将 Android 控件（view）制作成 Flutter 插件
+https://juejin.cn/post/7165748540365340680?searchId=202402111854289E863700793C3F31E748
+
+
 https://www.npackd.org/p/gradle/7.5.1
 下载后在gradle_cache_byandroid studio/wrapper对应版本号文件夹(需要flutter解压创建二维码文件名不要直接解压)解压即可
+
+
 
 
 Flutter 目前在性能表现上面还不够完美，整体页面还不够流畅，并且在一些复杂的页面场景下会出现比较严重的发热行为，尽管目前 Flutter 团队发布了新的渲染引擎 impeller，
