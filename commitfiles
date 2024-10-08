@@ -1,3 +1,6 @@
+权限封装(自行补齐getx调用) https://www.kancloud.cn/yuanrun/flutter/2328292
+自动补齐联想列表组件 https://cloud.tencent.com/developer/article/1984771
+移动端底部导航组件 https://fluttergems.dev/bottom-navigation-bar/
 flutter常用插件https://github.com/flutter/plugins
 仿微信聊天https://github.com/wanglu1209/WFlutterDemo
 flutter自建调用android plugin流程https://blog.csdn.net/qq_36524413/article/details/137275603
